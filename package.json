@@ -1,0 +1,45 @@
+{
+  "name": "email-service",
+  "version": "1.0.0",
+  "description": "Servico NestJS de e-mail corporativo desacoplado do garantia-service",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "start:prod": "node dist/main.js",
+    "worker:dev": "nest start --watch --entryFile worker-main",
+    "worker:start": "node dist/worker-main.js"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.7",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.1.7",
+    "@nestjs/platform-express": "^11.1.7",
+    "amqplib": "^0.10.5",
+    "axios": "^1.11.0",
+    "body-parser": "^2.2.0",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.14.2",
+    "dotenv": "^16.3.1",
+    "helmet": "^7.2.0",
+    "nodemailer": "^6.9.5",
+    "pg": "^8.11.3",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@types/body-parser": "^1.19.5",
+    "@nestjs/cli": "^11.0.10",
+    "@nestjs/schematics": "^11.0.0",
+    "@types/amqplib": "^0.10.7",
+    "@types/node": "^22.10.2",
+    "@types/nodemailer": "^6.4.17",
+    "@types/pg": "^8.11.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
