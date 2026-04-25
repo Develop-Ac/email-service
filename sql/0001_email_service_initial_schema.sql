@@ -160,7 +160,7 @@ CREATE TABLE email_core.mail_link (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT ck_mail_link_target CHECK (target_type IN ('MESSAGE', 'THREAD')),
   CONSTRAINT ck_mail_link_mode CHECK (link_mode IN ('AUTO', 'MANUAL', 'INHERITED')),
-  CONSTRAINT ck_mail_link_source CHECK (link_source IN ('THREAD_INHERITANCE', 'SUBJECT_CODE', 'BODY_CODE', 'MANUAL'))
+  CONSTRAINT ck_mail_link_source CHECK (link_source IN ('THREAD_INHERITANCE', 'SUBJECT_CODE', 'BODY_CODE', 'MANUAL', 'N8N'))
 );
 
 CREATE TABLE email_core.outbound_message (

@@ -51,6 +51,7 @@ Como consumidor RabbitMQ:
 
 ## Papel do n8n nas integracoes
 
-- consumidor de eventos RabbitMQ ou webhook derivado do email-service;
-- executor de automacoes perifericas;
-- sem acesso direto obrigatorio ao IMAP/SMTP no estado alvo.
+- origem hibrida de ingestao inbound enquanto o recebimento IMAP ficar centralizado no workflow existente;
+- chama `POST /api/internal/email/messages/ingest` para persistir read model oficial em `email_core`;
+- continua executando filtro, extracao de garantia, upload de anexos no MinIO e automacoes complementares;
+- consumidor de eventos RabbitMQ ou webhook derivado do email-service quando necessario.

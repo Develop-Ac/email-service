@@ -30,6 +30,7 @@ interface AccountRecord {
 @Injectable()
 export class OutboundQueueConsumer implements OnModuleInit {
   private readonly logger = new Logger(OutboundQueueConsumer.name);
+  private hasHeaderJsonColumn: boolean | null = null;
 
   constructor(
     private readonly rabbitMqService: RabbitMqService,
@@ -43,11 +44,37 @@ export class OutboundQueueConsumer implements OnModuleInit {
     });
   }
 
+  private async ensureHeaderJsonColumnPresence(): Promise<boolean> {
+    if (this.hasHeaderJsonColumn != null) {
+      return this.hasHeaderJsonColumn;
+    }
+
+    const result = await this.databaseService.query<{ exists: boolean }>(
+      `
+        SELECT EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'email_core'
+            AND table_name = 'outbound_message'
+            AND column_name = 'header_json'
+        ) AS exists
+      `,
+    );
+
+    this.hasHeaderJsonColumn = Boolean(result.rows[0]?.exists);
+    return this.hasHeaderJsonColumn;
+  }
+
   private async handle(payload: OutboundMessagePayload): Promise<void> {
+    const hasHeaderJson = await this.ensureHeaderJsonColumnPresence();
+    const selectHeaders = hasHeaderJson
+      ? `COALESCE(header_json, '{}'::jsonb) AS header_json,`
+      : `'{}'::jsonb AS header_json,`;
+
     const outboundResult = await this.databaseService.query<OutboundRecord>(
       `
       SELECT id, account_id, subject, body_text, body_html,
-             COALESCE(header_json, '{}'::jsonb) AS header_json,
+             ${selectHeaders}
              recipients_json, cc_json, bcc_json
       FROM email_core.outbound_message
       WHERE id = $1

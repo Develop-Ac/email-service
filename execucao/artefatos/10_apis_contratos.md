@@ -23,6 +23,84 @@ O email-service nao deve:
 
 ## Contratos REST internos propostos
 
+### 0. Ingestao inbound hibrida vinda do n8n
+
+`POST /api/internal/email/messages/ingest`
+
+Uso:
+- persistir no schema `email_core` os e-mails recebidos e processados pelo workflow n8n;
+- manter `n8n` como motor de recepcao, filtro, extracao de garantia e upload MinIO;
+- alimentar a tela operacional e o read model oficial do email-service.
+
+Request:
+
+```json
+{
+  "accountId": 1,
+  "internetMessageId": "<abc123@dominio.com>",
+  "inReplyTo": "<thread-parent@dominio.com>",
+  "referencesHeader": "<ref-1@dominio.com> <ref-2@dominio.com>",
+  "subject": "Retorno garantia NI 123456",
+  "fromAddress": "cliente@dominio.com",
+  "fromName": "Cliente X",
+  "replyToAddress": "cliente@dominio.com",
+  "bodyText": "Texto do e-mail",
+  "bodyHtml": "<p>Texto do e-mail</p>",
+  "headers": {
+    "message-id": "<abc123@dominio.com>"
+  },
+  "to": [
+    {
+      "email": "qualidade@empresa.com"
+    }
+  ],
+  "cc": [],
+  "bcc": [],
+  "receivedAt": "2026-04-24T14:20:00.000Z",
+  "internalDate": "2026-04-24T14:19:58.000Z",
+  "sizeBytes": 18234,
+  "attachments": [
+    {
+      "fileName": "foto-avaria.jpg",
+      "storageBucket": "garantias",
+      "storageKey": "anexos_email_garantia/abc123/foto-avaria.jpg",
+      "mimeType": "image/jpeg",
+      "sizeBytes": 90213,
+      "contentId": null,
+      "isInline": false
+    }
+  ],
+  "garantiaId": "12345",
+  "matchedValue": "123456",
+  "linkMode": "AUTO",
+  "linkSource": "N8N",
+  "linkConfidence": 1
+}
+```
+
+Resposta 200:
+
+```json
+{
+  "ok": true,
+  "created": true,
+  "messageId": 90001,
+  "threadId": 333,
+  "attachmentCount": 1,
+  "linkedGarantiaId": "12345"
+}
+```
+
+Persistencia esperada:
+- `email_core.mail_message`
+- `email_core.mail_thread`
+- `email_core.mail_attachment`
+- `email_core.mail_link`
+- `email_core.mail_event`
+
+Persistencia opcional:
+- `email_core.mail_folder_presence`, quando o n8n informar pasta e UID.
+
 ### 1. Buscar garantia por id
 
 `GET /internal/garantias/{garantiaId}`

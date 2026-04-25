@@ -12,14 +12,39 @@ interface OutboundRow {
 
 @Injectable()
 export class OutboundService {
+  private hasHeaderJsonColumn: boolean | null = null;
+
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly rabbitMqService: RabbitMqService,
   ) {}
 
-  async send(dto: SendOutboundDto) {
-    const insert = await this.databaseService.query<OutboundRow>(
+  private async ensureHeaderJsonColumnPresence(): Promise<boolean> {
+    if (this.hasHeaderJsonColumn != null) {
+      return this.hasHeaderJsonColumn;
+    }
+
+    const result = await this.databaseService.query<{ exists: boolean }>(
       `
+        SELECT EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'email_core'
+            AND table_name = 'outbound_message'
+            AND column_name = 'header_json'
+        ) AS exists
+      `,
+    );
+
+    this.hasHeaderJsonColumn = Boolean(result.rows[0]?.exists);
+    return this.hasHeaderJsonColumn;
+  }
+
+  async send(dto: SendOutboundDto) {
+    const hasHeaderJson = await this.ensureHeaderJsonColumnPresence();
+
+    const query = hasHeaderJson
+      ? `
         INSERT INTO email_core.outbound_message (
           account_id,
           thread_id,
@@ -37,22 +62,56 @@ export class OutboundService {
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, 'PENDING', $12)
         RETURNING id
-      `,
-      [
-        dto.accountId,
-        dto.threadId ?? null,
-        dto.parentMessageId ?? null,
-        dto.subject,
-        dto.bodyText ?? null,
-        dto.bodyHtml ?? null,
-        JSON.stringify(dto.headers ?? {}),
-        JSON.stringify(dto.recipients),
-        JSON.stringify(dto.cc ?? []),
-        JSON.stringify(dto.bcc ?? []),
-        JSON.stringify(dto.attachments ?? []),
-        'system',
-      ],
-    );
+      `
+      : `
+        INSERT INTO email_core.outbound_message (
+          account_id,
+          thread_id,
+          parent_message_id,
+          subject,
+          body_text,
+          body_html,
+          recipients_json,
+          cc_json,
+          bcc_json,
+          attachments_json,
+          send_status,
+          created_by_user_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, 'PENDING', $11)
+        RETURNING id
+      `;
+
+    const params = hasHeaderJson
+      ? [
+          dto.accountId,
+          dto.threadId ?? null,
+          dto.parentMessageId ?? null,
+          dto.subject,
+          dto.bodyText ?? null,
+          dto.bodyHtml ?? null,
+          JSON.stringify(dto.headers ?? {}),
+          JSON.stringify(dto.recipients),
+          JSON.stringify(dto.cc ?? []),
+          JSON.stringify(dto.bcc ?? []),
+          JSON.stringify(dto.attachments ?? []),
+          'system',
+        ]
+      : [
+          dto.accountId,
+          dto.threadId ?? null,
+          dto.parentMessageId ?? null,
+          dto.subject,
+          dto.bodyText ?? null,
+          dto.bodyHtml ?? null,
+          JSON.stringify(dto.recipients),
+          JSON.stringify(dto.cc ?? []),
+          JSON.stringify(dto.bcc ?? []),
+          JSON.stringify(dto.attachments ?? []),
+          'system',
+        ];
+
+    const insert = await this.databaseService.query<OutboundRow>(query, params);
 
     const payload: OutboundMessagePayload = {
       type: 'email.outbound.requested',

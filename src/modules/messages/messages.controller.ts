@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { PaginationQueryDto } from '../../shared/dto/pagination-query.dto';
 
@@ -19,5 +19,11 @@ export class MessagesController {
   @Get(':messageId')
   getMessage(@Param('messageId', ParseIntPipe) messageId: number) {
     return this.messagesService.getMessage(messageId);
+  }
+
+  @Delete(':messageId')
+  @HttpCode(HttpStatus.OK)
+  deleteMessage(@Param('messageId', ParseIntPipe) messageId: number) {
+    return this.messagesService.deleteMessage(messageId);
   }
 }

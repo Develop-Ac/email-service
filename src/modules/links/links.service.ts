@@ -30,10 +30,11 @@ export class LinksService {
   async createManualLink(dto: CreateLinkDto) {
     const validation = await this.garantiaClientService.validateLink(dto.entityId, {
       source: 'EMAIL_SERVICE',
-      targetType: dto.targetType,
-      targetId: dto.targetId,
+      messageId: dto.targetType === 'MESSAGE' ? String(dto.targetId) : undefined,
+      threadId: dto.targetType === 'THREAD' ? dto.targetId : undefined,
       linkMode: 'MANUAL',
       reasonCode: 'MANUAL',
+      confidenceScore: 1.0,
       matchedValue: dto.matchedValue ?? null,
     });
 
