@@ -191,6 +191,8 @@ export class InternalIngestService {
     participantsJson: Array<Record<string, string>>,
     receivedAt: string,
   ) {
+    const incomingHasAttachments = (dto.attachments?.length ?? 0) > 0;
+
     await client.query(
       `
         UPDATE email_core.mail_message
@@ -211,7 +213,11 @@ export class InternalIngestService {
             internal_date = $16,
             received_at = $17,
             size_bytes = $18,
-            has_attachments = $19,
+            has_attachments = $19 OR EXISTS (
+              SELECT 1
+              FROM email_core.mail_attachment ma
+              WHERE ma.message_id = $1
+            ),
             updated_at = NOW()
         WHERE id = $1
       `,
@@ -234,7 +240,7 @@ export class InternalIngestService {
         dto.internalDate ?? null,
         receivedAt,
         dto.sizeBytes ?? null,
-        (dto.attachments?.length ?? 0) > 0,
+        incomingHasAttachments,
       ],
     );
 
@@ -354,6 +360,8 @@ export class InternalIngestService {
   }
 
   private async upsertAttachment(client: PoolClient, messageId: number, attachment: InboundAttachmentDto) {
+    const normalizedInline = Boolean(attachment.contentId) || Boolean(attachment.isInline);
+
     const existing = await client.query<{ id: number }>(
       `
         SELECT id
@@ -385,7 +393,7 @@ export class InternalIngestService {
           attachment.sizeBytes ?? null,
           attachment.contentId ?? null,
           attachment.checksumSha256 ?? null,
-          attachment.isInline ?? false,
+          normalizedInline,
         ],
       );
       return;
@@ -413,7 +421,7 @@ export class InternalIngestService {
         attachment.sizeBytes ?? null,
         attachment.contentId ?? null,
         attachment.checksumSha256 ?? null,
-        attachment.isInline ?? false,
+        normalizedInline,
         attachment.storageBucket,
         attachment.storageKey,
       ],
