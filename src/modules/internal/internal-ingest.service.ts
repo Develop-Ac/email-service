@@ -23,6 +23,11 @@ interface ExistingFolderRow {
   id: number;
 }
 
+interface NormalizedAttachmentPayload extends InboundAttachmentDto {
+  contentId?: string;
+  isInline?: boolean;
+}
+
 @Injectable()
 export class InternalIngestService {
   constructor(private readonly databaseService: DatabaseService) {}
@@ -51,8 +56,10 @@ export class InternalIngestService {
       await this.attachMessageToThread(client, messageId, threadId, dto.garantiaId ? 'LINKED_AUTO' : 'THREADED');
       await this.touchThread(client, threadId, dto.subject ?? null, normalizedSubject || null, receivedAt);
 
+      const normalizedAttachments = this.normalizeAttachments(dto);
+
       let attachmentCount = 0;
-      for (const attachment of dto.attachments ?? []) {
+      for (const attachment of normalizedAttachments) {
         await this.upsertAttachment(client, messageId, attachment);
         attachmentCount += 1;
       }
@@ -426,6 +433,57 @@ export class InternalIngestService {
         attachment.storageKey,
       ],
     );
+  }
+
+  private normalizeAttachments(dto: IngestInboundMessageDto): NormalizedAttachmentPayload[] {
+    const attachments = [...(dto.attachments ?? [])];
+    if (attachments.length === 0) {
+      return [];
+    }
+
+    const cidRefs = this.extractCidReferences(dto.bodyHtml);
+    let cidIndex = 0;
+
+    return attachments.map((attachment) => {
+      const explicitContentId = attachment.contentId?.trim() || undefined;
+      const inferredContentId = explicitContentId ?? cidRefs[cidIndex];
+      if (!explicitContentId && inferredContentId) {
+        cidIndex += 1;
+      }
+
+      return {
+        ...attachment,
+        contentId: inferredContentId,
+        isInline: Boolean(attachment.isInline) || Boolean(inferredContentId),
+      };
+    });
+  }
+
+  private extractCidReferences(bodyHtml?: string | null): string[] {
+    if (!bodyHtml) {
+      return [];
+    }
+
+    const matches = bodyHtml.matchAll(/cid:([^"'\s>]+)/gi);
+    const refs: string[] = [];
+    const seen = new Set<string>();
+
+    for (const match of matches) {
+      const value = match[1]?.trim();
+      if (!value) {
+        continue;
+      }
+
+      const normalized = value.toLowerCase();
+      if (seen.has(normalized)) {
+        continue;
+      }
+
+      seen.add(normalized);
+      refs.push(value);
+    }
+
+    return refs;
   }
 
   private async upsertFolderPresence(
