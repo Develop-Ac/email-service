@@ -442,14 +442,10 @@ export class InternalIngestService {
     }
 
     const cidRefs = this.extractCidReferences(dto.bodyHtml);
-    let cidIndex = 0;
 
     return attachments.map((attachment) => {
       const explicitContentId = attachment.contentId?.trim() || undefined;
-      const inferredContentId = explicitContentId ?? cidRefs[cidIndex];
-      if (!explicitContentId && inferredContentId) {
-        cidIndex += 1;
-      }
+      const inferredContentId = explicitContentId ?? this.inferAttachmentContentId(attachment, cidRefs);
 
       return {
         ...attachment,
@@ -484,6 +480,25 @@ export class InternalIngestService {
     }
 
     return refs;
+  }
+
+  private inferAttachmentContentId(
+    attachment: InboundAttachmentDto,
+    cidRefs: string[],
+  ): string | undefined {
+    if (cidRefs.length === 0) {
+      return undefined;
+    }
+
+    const fileName = attachment.fileName?.trim().toLowerCase() ?? '';
+    if (!fileName || fileName === 'anexo') {
+      return cidRefs.length === 1 ? cidRefs[0] : undefined;
+    }
+
+    return cidRefs.find((cidRef) => {
+      const cidName = cidRef.split('@')[0]?.trim().toLowerCase() ?? '';
+      return cidName && cidName === fileName;
+    });
   }
 
   private async upsertFolderPresence(
