@@ -252,7 +252,19 @@ Request:
   "internetMessageId": "<abc@example.com>",
   "subject": "Retorno garantia NI 123456",
   "from": "cliente@dominio.com",
-  "receivedAt": "2026-04-22T10:15:00Z"
+  "receivedAt": "2026-04-22T10:15:00Z",
+  "attachments": [
+    {
+      "fileName": "foto-avaria.jpg",
+      "path": "anexos_email_garantia/abc123/foto-avaria.jpg",
+      "storageBucket": "garantias",
+      "storageKey": "anexos_email_garantia/abc123/foto-avaria.jpg",
+      "mimeType": "image/jpeg",
+      "sizeBytes": 248112,
+      "contentId": "ii_191e0abc",
+      "isInline": true
+    }
+  ]
 }
 ```
 

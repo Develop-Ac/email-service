@@ -55,3 +55,21 @@ Como consumidor RabbitMQ:
 - chama `POST /api/internal/email/messages/ingest` para persistir read model oficial em `email_core`;
 - continua executando filtro, extracao de garantia, upload de anexos no MinIO e automacoes complementares;
 - consumidor de eventos RabbitMQ ou webhook derivado do email-service quando necessario.
+
+## Estrategia de anexos e inline (MinIO)
+
+- bucket padrao: `garantias`;
+- prefixo recomendado: `anexos_email_garantia/{messageIdSanitizado}/`;
+- para cada arquivo (anexo normal ou inline), persistir:
+- `fileName`
+- `storageBucket`
+- `storageKey`
+- `mimeType`
+- `sizeBytes`
+- `contentId` (quando existir)
+- `isInline`.
+
+Regra funcional:
+- imagens inline devem ser identificadas por `contentId` e renderizadas no frontend substituindo `cid:` por URL assinada;
+- anexos nao inline permanecem na lista de arquivos para download;
+- fallback de tipo/icone no frontend deve usar extensao quando `mimeType` nao vier preenchido.
