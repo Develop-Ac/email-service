@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { MessagesService } from '../messages/messages.service';
 import { ThreadsService } from '../threads/threads.service';
 import { IngestInboundMessageDto } from './dto/ingest-inbound-message.dto';

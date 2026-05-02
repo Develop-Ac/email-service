@@ -37,6 +37,18 @@ interface MessageAttachmentRow {
   storage_key: string;
 }
 
+interface MessageResolutionRow {
+  message_id: number | null;
+  account_id: number | null;
+  thread_id: number | null;
+  parent_message_id: number | null;
+  internet_message_id: string | null;
+  provider_message_id: string | null;
+  outbound_message_id: number | null;
+  subject: string | null;
+  direction: string | null;
+}
+
 @Injectable()
 export class MessagesService {
   constructor(private readonly databaseService: DatabaseService) {}
@@ -173,6 +185,86 @@ export class MessagesService {
     );
 
     return result.rows;
+  }
+
+  async resolveMessageReference(messageRef: string) {
+    const normalized = messageRef.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (/^outbound:\d+$/i.test(normalized)) {
+      const outboundMessageId = Number(normalized.split(':')[1]);
+      const result = await this.databaseService.query<MessageResolutionRow>(
+        `
+          SELECT
+            mm.id AS message_id,
+            om.account_id,
+            COALESCE(mm.thread_id, om.thread_id) AS thread_id,
+            COALESCE(mm.id, om.parent_message_id) AS parent_message_id,
+            mm.internet_message_id,
+            om.provider_message_id,
+            om.id AS outbound_message_id,
+            om.subject,
+            COALESCE(mm.direction, 'OUTBOUND') AS direction
+          FROM email_core.outbound_message om
+          LEFT JOIN email_core.mail_message mm
+            ON mm.account_id = om.account_id
+           AND mm.internet_message_id = om.provider_message_id
+          WHERE om.id = $1
+          LIMIT 1
+        `,
+        [outboundMessageId],
+      );
+
+      return result.rows[0] ?? null;
+    }
+
+    const directById = Number(normalized);
+    if (Number.isFinite(directById) && String(directById) === normalized) {
+      const result = await this.databaseService.query<MessageResolutionRow>(
+        `
+          SELECT
+            id AS message_id,
+            account_id,
+            thread_id,
+            id AS parent_message_id,
+            internet_message_id,
+            NULL::text AS provider_message_id,
+            NULL::integer AS outbound_message_id,
+            subject_raw AS subject,
+            direction
+          FROM email_core.mail_message
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [directById],
+      );
+
+      return result.rows[0] ?? null;
+    }
+
+    const result = await this.databaseService.query<MessageResolutionRow>(
+      `
+        SELECT
+          id AS message_id,
+          account_id,
+          thread_id,
+          id AS parent_message_id,
+          internet_message_id,
+          NULL::text AS provider_message_id,
+          NULL::integer AS outbound_message_id,
+          subject_raw AS subject,
+          direction
+        FROM email_core.mail_message
+        WHERE internet_message_id = $1
+        ORDER BY id DESC
+        LIMIT 1
+      `,
+      [normalized],
+    );
+
+    return result.rows[0] ?? null;
   }
 
   async deleteMessage(messageId: number) {
